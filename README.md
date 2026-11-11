@@ -29,6 +29,18 @@ Sito della classe per verifiche e interrogazioni. Si usa da PC e da telefono. Si
 - **Attività**: registro di accessi, nuovi account, impegni aggiunti, modificati ed eliminati, con nome e orario.
 - **Impegni**: tutti gli impegni, puoi eliminarli.
 
+## Da foto (solo admin, gratis)
+
+Nel portale admin, scheda **Da foto**: scatti la foto di un foglio con nomi e giorni degli interrogati, l'app legge il foglio, ti mostra un'anteprima modificabile e solo dopo il tuo "Inserisci" salva gli impegni. Le righe incerte sono segnate "Da controllare" e partono deselezionate.
+
+Serve una chiave gratuita di Google (Gemini), senza carta di credito:
+
+1. Vai su https://aistudio.google.com/apikey e accedi con un account Google.
+2. Premi **Create API key** e copia la chiave.
+3. Su Vercel, **Settings > Environment Variables**, aggiungi `GEMINI_API_KEY` con quella chiave e fai **Redeploy**.
+
+Note: il piano gratuito ha un limite di richieste al minuto e al giorno (bastano per questo uso). Google può usare i contenuti inviati col piano gratuito per migliorare i suoi prodotti: nella foto ci sono nomi di compagni, quindi usala solo se vi sta bene. Se un giorno il modello cambia nome, imposta la variabile `GEMINI_MODEL` (oggi: `gemini-3.6-flash`).
+
 ## Cose da sapere
 
 - L'identità è il nome: chi sa il codice classe può scrivere il nome di un altro compagno. Per una classe va bene. Se qualcuno disturba, espellilo e cambia `CLASS_CODE` (poi Redeploy): chi ha già fatto accesso resta dentro finché non lo disconnetti, quindi dopo il cambio usa **Disconnetti** sugli account.

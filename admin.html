@@ -68,6 +68,23 @@ h1 mark{background:var(--hl);color:#14183a;padding:0 .18em;border-radius:6px}
 .sub{color:var(--muted);margin:0}
 .note{color:var(--muted);font-size:.85rem;margin-top:14px}
 @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}.tile:first-child{grid-column:1 / -1}}
+.thumb{max-width:100%;max-height:280px;border-radius:12px;display:block;margin:12px 0;border:1px solid var(--line)}
+.scanbox{background:var(--surface);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+.scanbox h2{font-family:var(--display);margin:0 0 4px;font-size:1.3rem}
+.prev{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.row{border:1.5px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:8px;grid-template-columns:1fr 1fr}
+.row.off{opacity:.55}
+.row.warnrow{border-color:#e0a800}
+.row .full{grid-column:1 / -1}
+.row label{font-size:.78rem;font-weight:700;color:var(--muted);display:block;margin-bottom:3px}
+.row input,.row select{width:100%;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 10px;min-height:42px;font:inherit;color:inherit}
+.row .chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.95rem;color:var(--ink);margin:0}
+.row .chk input{width:20px;height:20px;min-height:0}
+.badge{display:inline-block;font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--hl);color:#14183a}
+.badge.dup{background:var(--bad-bg);color:var(--bad)}
+.okmsg{color:var(--good);font-weight:700}
+.stick{position:sticky;bottom:10px;margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);padding:10px;border-radius:14px;box-shadow:var(--shadow)}
+@media (max-width:480px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -98,6 +115,7 @@ h1 mark{background:var(--hl);color:#14183a;padding:0 .18em;border-radius:6px}
       <button type="button" data-tab="users" aria-pressed="true">Account</button>
       <button type="button" data-tab="log" aria-pressed="false">Attività</button>
       <button type="button" data-tab="events" aria-pressed="false">Impegni</button>
+      <button type="button" data-tab="scan" aria-pressed="false">Da foto</button>
     </div>
     <div id="main"></div>
   </div>
@@ -148,6 +166,7 @@ const ACT={
   'admin-unban':x=>'ha riammesso '+x.target,
   'admin-logout':x=>'ha disconnesso '+x.target,
   'admin-delete':x=>'ha eliminato l\'account di '+x.target,
+  'admin-add':x=>'ha inserito '+x.count+(x.count===1?' impegno':' impegni')+' da foto',
   'admin-evento':x=>'ha eliminato '+(x.subject?WHAT(x):'un impegno')
 };
 
@@ -162,6 +181,7 @@ function render(){
   const main=$('#main');
   if(st.tab==='users')main.replaceChildren(usersView());
   else if(st.tab==='log')main.replaceChildren(logView());
+  else if(st.tab==='scan'){if(!st.scanEl)st.scanEl=buildScan();main.replaceChildren(st.scanEl);}
   else main.replaceChildren(eventsView());
 }
 
@@ -210,9 +230,107 @@ function eventsView(){
     h('div',{class:'acts'},confirmBtn('Elimina impegno','bad',()=>call('POST',{action:'delevent',id:e.id}))))));
 }
 
+async function shrink(file){
+  let bmp;
+  try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'});}
+  catch(_){bmp=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=URL.createObjectURL(file);});}
+  const w=bmp.width||bmp.naturalWidth,ht=bmp.height||bmp.naturalHeight;
+  let out=null;
+  for(const[max,q]of[[2000,.88],[1400,.8],[1000,.7]]){
+    const k=Math.min(1,max/Math.max(w,ht));
+    const c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(ht*k);
+    c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));
+    const b64=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(String(f.result).split(',')[1]);f.readAsDataURL(blob);});
+    out={blob,b64};if(b64.length<3500000)break;
+  }
+  return out;
+}
+
+function buildScan(){
+  let b64='',items=[];
+  const SUBJ=['Italiano','Inglese','Storia e Geografia','Matematica','Informatica','Fisica','Scienze naturali',"Disegno e Storia dell'arte",'Scienze motorie','Religione'];
+  const status=h('p',{class:'sub',role:'status'});
+  const err=h('p',{class:'err',role:'alert'});
+  const pick=h('input',{type:'file',accept:'image/*',hidden:true,id:'photo'});
+  const img=h('img',{class:'thumb',alt:'Foto del foglio',hidden:true});
+  const readBtn=h('button',{class:'btn',type:'button',hidden:true},'Leggi la foto');
+  const list=h('div',{class:'prev'});
+  const dl=h('datalist',{id:'subjlist'},SUBJ.map(x=>h('option',{value:x})));
+  const insBtn=h('button',{class:'btn',type:'button'},'Inserisci');
+  const stick=h('div',{class:'stick',hidden:true},insBtn,h('span',{class:'sub'},'Controlla bene: niente viene salvato finché non premi Inserisci.'));
+  const box=h('div',{class:'scanbox'},
+    h('h2',{},'Da foto'),
+    h('p',{class:'sub'},'Fotografa il foglio con i nomi degli interrogati e i giorni. Leggo io, tu controlli l\'anteprima e poi inserisci.'),
+    h('div',{class:'acts'},h('button',{class:'btn',type:'button',onclick:()=>pick.click()},'Scegli o scatta una foto'),readBtn),
+    pick,img,status,err,list,stick,dl);
+
+  const dup=it=>st.data&&st.data.events.some(e=>e.date===it.date&&e.type===it.type&&String(e.subject).toLowerCase()===it.subject.trim().toLowerCase());
+  const okRow=it=>it.subject.trim()&&/^\d{4}-\d{2}-\d{2}$/.test(it.date);
+  function refreshIns(){
+    const on=items.filter(i=>i.on),bad=on.filter(i=>!okRow(i));
+    insBtn.textContent=on.length?'Inserisci '+on.length+(on.length===1?' impegno':' impegni'):'Nessun impegno selezionato';
+    insBtn.disabled=!on.length||bad.length>0;
+    err.textContent=bad.length?'Mancano materia o data in '+bad.length+(bad.length===1?' riga selezionata.':' righe selezionate.'):'';
+  }
+  function row(it,idx){
+    const f=(label,el,cls)=>h('div',{class:cls||''},h('label',{},label),el);
+    const r=h('div',{class:'row'});
+    const paint=()=>{r.classList.toggle('off',!it.on);r.classList.toggle('warnrow',it.uncertain||!okRow(it));};
+    const t=h('select',{onchange:e=>{it.type=e.target.value;who.parentElement.hidden=it.type!=='interrogazione';}},h('option',{value:'interrogazione'},'Interrogazione'),h('option',{value:'verifica'},'Verifica'));t.value=it.type;
+    const subj=h('input',{list:'subjlist',value:it.subject,maxlength:60,oninput:e=>{it.subject=e.target.value;paint();refreshIns();}});
+    const date=h('input',{type:'date',value:it.date,oninput:e=>{it.date=e.target.value;paint();refreshIns();}});
+    const who=h('input',{value:it.who,maxlength:120,placeholder:'Nomi, separati da virgola',oninput:e=>{it.who=e.target.value;}});
+    const topic=h('input',{value:it.topic,maxlength:140,oninput:e=>{it.topic=e.target.value;}});
+    const chk=h('input',{type:'checkbox',checked:it.on,onchange:e=>{it.on=e.target.checked;paint();refreshIns();}});
+    const whoWrap=f('Chi viene interrogato',who,'full');whoWrap.hidden=it.type!=='interrogazione';
+    // il riferimento "who" serve nel select: lo ricolleghiamo dopo
+    t.onchange=e=>{it.type=e.target.value;whoWrap.hidden=it.type!=='interrogazione';};
+    r.append(
+      h('label',{class:'chk full'},chk,'Inserisci questo impegno',dup(it)&&h('span',{class:'badge dup'},'Già in agenda'),(it.uncertain||it.note)&&h('span',{class:'badge'},'Da controllare')),
+      f('Tipo',t),f('Materia',subj),f('Data',date),f('Argomento',topic),whoWrap,
+      it.note&&h('p',{class:'sub full'},'Nota: '+it.note));
+    paint();return r;
+  }
+  function draw(){list.replaceChildren(...items.map(row));stick.hidden=!items.length;refreshIns();}
+
+  pick.onchange=async()=>{
+    const file=pick.files&&pick.files[0];if(!file)return;
+    err.textContent='';status.textContent='Preparo la foto...';items=[];draw();
+    try{
+      const r=await shrink(file);b64=r.b64;img.src=URL.createObjectURL(r.blob);img.hidden=false;readBtn.hidden=false;
+      status.textContent='Foto pronta. Premi "Leggi la foto".';
+    }catch(_){status.textContent='';err.textContent='Non riesco ad aprire questa foto. Prova con un\'altra.';}
+  };
+  readBtn.onclick=async()=>{
+    if(!b64)return;readBtn.disabled=true;err.textContent='';items=[];draw();
+    status.textContent='Sto leggendo il foglio... può volerci qualche secondo.';
+    try{
+      const r=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json','x-admin-code':st.code},body:JSON.stringify({image:b64,today:new Date().toISOString().slice(0,10)})});
+      let j=null;try{j=await r.json();}catch(_){}
+      if(!r.ok)throw new Error((j&&j.error)||'Lettura non riuscita.');
+      items=j.items.map(i=>{const x={...i};x.on=!(dup(x))&&!!x.subject&&!!x.date;return x;});
+      status.textContent=items.length?(items.length+(items.length===1?' impegno trovato.':' impegni trovati.')+' Controlla e correggi prima di inserire.'+(j.comment?' '+j.comment:'')):('Non ho trovato impegni nella foto.'+(j.comment?' '+j.comment:''));
+      draw();
+    }catch(e){status.textContent='';err.textContent=e.message;}
+    finally{readBtn.disabled=false;}
+  };
+  insBtn.onclick=async()=>{
+    const rows=items.filter(i=>i.on&&okRow(i));if(!rows.length)return;
+    insBtn.disabled=true;err.textContent='';
+    try{
+      const j=await call('POST',{action:'addevents',events:rows.map(i=>({type:i.type,subject:i.subject.trim(),date:i.date,topic:i.topic,who:i.type==='interrogazione'?i.who:'',notes:''}))});
+      items=[];draw();status.className='okmsg';status.textContent='Inseriti '+j.count+(j.count===1?' impegno':' impegni')+' in agenda.';
+      setTimeout(()=>{status.className='sub';},6000);
+      await load();
+    }catch(e){err.textContent=e.message;refreshIns();}
+  };
+  return box;
+}
+
 $('#loginForm').addEventListener('submit',e=>{e.preventDefault();st.code=$('#code').value;try{sessionStorage.setItem('agenda2l-admin',st.code);}catch(_){}$('#code').value='';$('#loginErr').textContent='';load();});
 $('#reload').onclick=load;
-$('#exit').onclick=()=>{st.code='';st.data=null;try{sessionStorage.removeItem('agenda2l-admin');}catch(_){}$('#dash').hidden=true;$('#loginView').hidden=false;};
+$('#exit').onclick=()=>{st.scanEl=null;st.code='';st.data=null;try{sessionStorage.removeItem('agenda2l-admin');}catch(_){}$('#dash').hidden=true;$('#loginView').hidden=false;};
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{st.tab=b.dataset.tab;if(st.data)render();});
 
 if(st.code)load();else $('#loginView').hidden=false;

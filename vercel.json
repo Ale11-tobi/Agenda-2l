@@ -1,1 +1,1 @@
-{ "cleanUrls": true }
+{ "cleanUrls": true, "functions": { "api/scan.js": { "maxDuration": 60 } } }

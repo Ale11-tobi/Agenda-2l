@@ -35,6 +35,16 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const b = await L.body(req);
       const key = L.str(b.key, 40), action = L.str(b.action, 20);
+      if (action === 'addevents') {
+        const list = Array.isArray(b.events) ? b.events.slice(0, 50) : [];
+        const evs = list.map((e) => L.sanitizeEvent({ ...e, id: undefined })).filter(Boolean);
+        if (!evs.length) return L.send(res, 400, { error: 'Nessun impegno valido da inserire.' });
+        if ((await L.redis(['HLEN', L.K.events])) + evs.length > 2000) return L.send(res, 507, { error: 'Agenda piena: elimina impegni vecchi.' });
+        const now = Date.now();
+        await L.multi(evs.map((e) => ['HSET', L.K.events, e.id, JSON.stringify({ ...e, createdBy: 'Admin', createdAt: now, updatedBy: 'Admin', updatedAt: now })]));
+        await L.log({ user: 'Admin', action: 'admin-add', count: evs.length });
+        return L.send(res, 200, { ok: true, count: evs.length });
+      }
       if (action === 'delevent') {
         const id = L.str(b.id, 40);
         let old = null; try { old = JSON.parse(await L.redis(['HGET', L.K.events, id])); } catch (_) {}
