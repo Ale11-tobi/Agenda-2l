@@ -65,6 +65,8 @@ h1 mark{background:var(--hl);color:#14183a;padding:0 .18em;border-radius:6px}
 .login label{display:block;font-weight:700;font-size:.9rem;margin:14px 0 5px}
 .login input{width:100%;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:11px 12px;min-height:44px}
 .login .btn{width:100%;margin-top:6px}
+.login label.rem{display:flex;align-items:center;gap:8px;font-weight:600;margin:12px 0 0}
+.login label.rem input{width:20px;height:20px;min-height:0}
 .sub{color:var(--muted);margin:0}
 .note{color:var(--muted);font-size:.85rem;margin-top:14px}
 @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}.tile:first-child{grid-column:1 / -1}}
@@ -95,6 +97,7 @@ h1 mark{background:var(--hl);color:#14183a;padding:0 .18em;border-radius:6px}
     <form id="loginForm" autocomplete="off">
       <label for="code">Codice admin</label>
       <input id="code" type="password" required maxlength="100">
+      <label class="rem"><input type="checkbox" id="remember" checked> Ricordami su questo dispositivo</label>
       <p class="err" id="loginErr" role="alert"></p>
       <button class="btn" type="submit">Entra</button>
     </form>
@@ -126,7 +129,8 @@ const $=s=>document.querySelector(s);
 function h(tag,props,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(props||{})){if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v);}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c&&c.nodeType?c:document.createTextNode(String(c)));}return e;}
 const MESI=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
 const st={code:'',data:null,tab:'users',now:Date.now()};
-try{st.code=sessionStorage.getItem('agenda2l-admin')||'';}catch(_){}
+function forget(){try{localStorage.removeItem('agenda2l-admin');sessionStorage.removeItem('agenda2l-admin');}catch(_){}}
+try{st.code=localStorage.getItem('agenda2l-admin')||sessionStorage.getItem('agenda2l-admin')||'';}catch(_){}
 
 const two=n=>String(n).padStart(2,'0');
 function fmt(ts){if(!ts)return 'mai';const d=new Date(ts);return d.getDate()+' '+MESI[d.getMonth()]+' '+d.getFullYear()+', '+two(d.getHours())+':'+two(d.getMinutes());}
@@ -149,7 +153,7 @@ async function load(){
     if(e.status===401||e.status===429){
       $('#dash').hidden=true;$('#loginView').hidden=false;
       $('#loginErr').textContent=st.code?e.message:'';
-      st.code='';try{sessionStorage.removeItem('agenda2l-admin');}catch(_){}
+      st.code='';forget();
     }else if(st.data){$('#err').textContent=e.message;}
     else{$('#loginView').hidden=false;$('#loginErr').textContent=e.message;}
   }
@@ -328,9 +332,9 @@ function buildScan(){
   return box;
 }
 
-$('#loginForm').addEventListener('submit',e=>{e.preventDefault();st.code=$('#code').value;try{sessionStorage.setItem('agenda2l-admin',st.code);}catch(_){}$('#code').value='';$('#loginErr').textContent='';load();});
+$('#loginForm').addEventListener('submit',e=>{e.preventDefault();st.code=$('#code').value;forget();try{($('#remember').checked?localStorage:sessionStorage).setItem('agenda2l-admin',st.code);}catch(_){}$('#code').value='';$('#loginErr').textContent='';load();});
 $('#reload').onclick=load;
-$('#exit').onclick=()=>{st.scanEl=null;st.code='';st.data=null;try{sessionStorage.removeItem('agenda2l-admin');}catch(_){}$('#dash').hidden=true;$('#loginView').hidden=false;};
+$('#exit').onclick=()=>{st.scanEl=null;st.code='';st.data=null;forget();$('#dash').hidden=true;$('#loginView').hidden=false;};
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{st.tab=b.dataset.tab;if(st.data)render();});
 
 if(st.code)load();else $('#loginView').hidden=false;
