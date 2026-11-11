@@ -39,7 +39,7 @@ Serve una chiave gratuita di Google (Gemini), senza carta di credito:
 2. Premi **Create API key** e copia la chiave.
 3. Su Vercel, **Settings > Environment Variables**, aggiungi `GEMINI_API_KEY` con quella chiave e fai **Redeploy**.
 
-Note: il piano gratuito ha un limite di richieste al minuto e al giorno (bastano per questo uso). Google può usare i contenuti inviati col piano gratuito per migliorare i suoi prodotti: nella foto ci sono nomi di compagni, quindi usala solo se vi sta bene. Se un giorno il modello cambia nome, imposta la variabile `GEMINI_MODEL` (oggi: `gemini-3.6-flash`).
+Note: il piano gratuito ha un limite di richieste al minuto e al giorno (bastano per questo uso). Google può usare i contenuti inviati col piano gratuito per migliorare i suoi prodotti: nella foto ci sono nomi di compagni, quindi usala solo se vi sta bene. Il codice usa solo modelli gratuiti di Google (`gemini-3.6-flash` di default; con `GEMINI_MODEL` puoi sceglierne un altro solo tra quelli gratuiti dell'elenco in `api/scan.js`) e si ferma a 30 letture al giorno. Importante: la chiave resta gratuita solo se il progetto Google non ha un conto di fatturazione collegato. Non collegarlo mai.
 
 ## Cose da sapere
 

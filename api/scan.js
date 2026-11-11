@@ -2,7 +2,10 @@
 // Solo admin. Non salva nulla: l'inserimento avviene dopo l'anteprima, da /api/admin.
 const L = require('../lib/shared.js');
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+// Solo modelli con piano gratuito (dalla pagina prezzi di Google). Qualsiasi altro nome viene ignorato.
+const FREE_MODELS = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+const MODEL = FREE_MODELS.includes(process.env.GEMINI_MODEL) ? process.env.GEMINI_MODEL : FREE_MODELS[0];
+const DAILY_MAX = 30; // letture al giorno, per restare dentro i limiti gratuiti
 
 function prompt(today) {
   return `Sei l'assistente di una classe 2L del liceo scientifico opzione scienze applicate (biennio, Italia).
@@ -50,6 +53,11 @@ module.exports = async (req, res) => {
     if (!/^[A-Za-z0-9+/=\r\n]+$/.test(image) || image.length < 200) return L.send(res, 400, { error: 'Foto non valida.' });
     if (image.length > 4000000) return L.send(res, 413, { error: 'Foto troppo grande.' });
     const today = /^\d{4}-\d{2}-\d{2}$/.test(b.today || '') ? b.today : new Date().toISOString().slice(0, 10);
+
+    const dayKey = 'scan:' + new Date().toISOString().slice(0, 10);
+    const used = await L.redis(['INCR', dayKey]);
+    if (used === 1) await L.redis(['EXPIRE', dayKey, 172800]);
+    if (used > DAILY_MAX) return L.send(res, 429, { error: 'Limite giornaliero raggiunto (' + DAILY_MAX + ' letture). Riprova domani.' });
 
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(MODEL) + ':generateContent', {
       method: 'POST',
