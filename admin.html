@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin Agenda 2L</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Pannello di controllo: riepilogo in alto, poi schede Account / Attività / Impegni. */
+:root{
+  --bg:#f2f4fb; --surface:#fff; --ink:#14183a; --muted:#5d6388; --line:#dfe3f2;
+  --accent:#3a4af0; --accent-ink:#fff; --bad:#d6343c; --bad-bg:#fdecec; --good:#0a8f80; --good-bg:#e1f6f3; --hl:#ffe45c;
+  --shadow:0 1px 2px rgba(20,24,58,.06),0 6px 20px rgba(20,24,58,.06);
+  --display:'Bricolage Grotesque','Trebuchet MS',system-ui,sans-serif;
+  --body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1124; --surface:#171b36; --ink:#eef0ff; --muted:#9aa0c8; --line:#272c52;
+  --accent:#7d89ff; --accent-ink:#0e1124; --bad:#ff7078; --bad-bg:#3a1c28; --good:#3fd2bf; --good-bg:#12362f;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3);color-scheme:dark;}}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(1.8rem,5vw,2.4rem);margin:0;line-height:1.05}
+h1 mark{background:var(--hl);color:#14183a;padding:0 .18em;border-radius:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:var(--accent);color:var(--accent-ink);min-height:44px}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.bad{background:var(--bad);color:#fff}
+.btn.sm{min-height:38px;padding:6px 12px;font-size:.9rem}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.tile{background:var(--surface);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.tile .k{font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tile .v{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.tabs{display:inline-flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);margin-bottom:16px;max-width:100%}
+.tabs button{border:0;background:none;padding:10px 16px;font-weight:700;cursor:pointer;min-height:44px}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.card{background:var(--surface);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;min-width:0}
+.card.banned{border:2px solid var(--bad)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.name{font-family:var(--display);font-weight:800;font-size:1.25rem;overflow-wrap:anywhere}
+.pill{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}
+.pill.on{background:var(--good-bg);color:var(--good)} .pill.off{background:var(--bad-bg);color:var(--bad)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.92rem;margin:2px 0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-variant-numeric:tabular-nums}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.log{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.logrow{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:11px 16px;border-top:1px solid var(--line)}
+.logrow:first-child{border-top:0}
+.logrow .t{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.logrow b{font-weight:700}
+@media (max-width:640px){.logrow{grid-template-columns:1fr;gap:0}}
+.empty{background:var(--surface);border:2px dashed var(--line);border-radius:16px;padding:28px;text-align:center;color:var(--muted)}
+.err{color:var(--bad);font-weight:600;min-height:1.3em;margin:8px 0}
+.login{max-width:380px;margin:12vh auto 0;background:var(--surface);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
+.login h1{margin-bottom:6px}
+.login label{display:block;font-weight:700;font-size:.9rem;margin:14px 0 5px}
+.login input{width:100%;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:11px 12px;min-height:44px}
+.login .btn{width:100%;margin-top:6px}
+.sub{color:var(--muted);margin:0}
+.note{color:var(--muted);font-size:.85rem;margin-top:14px}
+@media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}.tile:first-child{grid-column:1 / -1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="loginView" class="login" hidden>
+    <h1>Admin <mark>2L</mark></h1>
+    <p class="sub">Area riservata a chi gestisce l'agenda.</p>
+    <form id="loginForm" autocomplete="off">
+      <label for="code">Codice admin</label>
+      <input id="code" type="password" required maxlength="100">
+      <p class="err" id="loginErr" role="alert"></p>
+      <button class="btn" type="submit">Entra</button>
+    </form>
+  </div>
+
+  <div id="dash" hidden>
+    <header>
+      <h1>Admin <mark>2L</mark></h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="sub" id="updated"></span>
+        <button class="btn ghost sm" id="reload" type="button">Aggiorna</button>
+        <button class="btn ghost sm" id="exit" type="button">Esci</button>
+      </div>
+    </header>
+    <p class="err" id="err" role="alert"></p>
+    <div class="tiles" id="tiles"></div>
+    <div class="tabs" role="group" aria-label="Sezioni">
+      <button type="button" data-tab="users" aria-pressed="true">Account</button>
+      <button type="button" data-tab="log" aria-pressed="false">Attività</button>
+      <button type="button" data-tab="events" aria-pressed="false">Impegni</button>
+    </div>
+    <div id="main"></div>
+  </div>
+</div>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+function h(tag,props,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(props||{})){if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v);}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c&&c.nodeType?c:document.createTextNode(String(c)));}return e;}
+const MESI=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+const st={code:'',data:null,tab:'users',now:Date.now()};
+try{st.code=sessionStorage.getItem('agenda2l-admin')||'';}catch(_){}
+
+const two=n=>String(n).padStart(2,'0');
+function fmt(ts){if(!ts)return 'mai';const d=new Date(ts);return d.getDate()+' '+MESI[d.getMonth()]+' '+d.getFullYear()+', '+two(d.getHours())+':'+two(d.getMinutes());}
+function fmtShort(ts){const d=new Date(ts);return d.getDate()+' '+MESI[d.getMonth()]+', '+two(d.getHours())+':'+two(d.getMinutes());}
+function ago(ts){if(!ts)return '';const s=Math.max(0,Math.round((st.now-ts)/1000));if(s<60)return 'adesso';const m=Math.round(s/60);if(m<60)return m+' min fa';const o=Math.round(m/60);if(o<24)return o+' h fa';const g=Math.round(o/24);return g+(g===1?' giorno fa':' giorni fa');}
+function day(s){const p=String(s||'').split('-').map(Number);return p.length===3?p[2]+' '+MESI[p[1]-1]:'';}
+
+async function call(method,body){
+  const r=await fetch('/api/admin',{method,headers:{'Content-Type':'application/json','x-admin-code':st.code},body:body?JSON.stringify(body):undefined});
+  let j=null;try{j=await r.json();}catch(_){}
+  if(!r.ok){const e=new Error((j&&j.error)||'Errore');e.status=r.status;throw e;}
+  return j;
+}
+async function load(){
+  try{
+    const j=await call('GET');
+    st.data=j;st.now=j.now;$('#err').textContent='';
+    $('#loginView').hidden=true;$('#dash').hidden=false;render();
+  }catch(e){
+    if(e.status===401||e.status===429){
+      $('#dash').hidden=true;$('#loginView').hidden=false;
+      $('#loginErr').textContent=st.code?e.message:'';
+      st.code='';try{sessionStorage.removeItem('agenda2l-admin');}catch(_){}
+    }else if(st.data){$('#err').textContent=e.message;}
+    else{$('#loginView').hidden=false;$('#loginErr').textContent=e.message;}
+  }
+}
+
+const WHAT=x=>(x.type==='interrogazione'?'un\'interrogazione':'una verifica')+' di '+x.subject+' del '+day(x.date);
+const ACT={
+  nuovo:x=>'ha creato l\'account',
+  accesso:x=>'ha fatto accesso',
+  crea:x=>'ha aggiunto '+WHAT(x),
+  modifica:x=>'ha modificato '+WHAT(x),
+  elimina:x=>'ha eliminato '+WHAT(x),
+  'admin-ban':x=>'ha espulso '+x.target,
+  'admin-unban':x=>'ha riammesso '+x.target,
+  'admin-logout':x=>'ha disconnesso '+x.target,
+  'admin-delete':x=>'ha eliminato l\'account di '+x.target,
+  'admin-evento':x=>'ha eliminato '+(x.subject?WHAT(x):'un impegno')
+};
+
+function render(){
+  const d=st.data,now=st.now;
+  const online=d.users.filter(u=>now-u.lastSeen<180000&&!u.banned).length;
+  const edits24=d.log.filter(x=>['crea','modifica','elimina'].includes(x.action)&&now-x.t<864e5).length;
+  const tile=(k,v)=>h('div',{class:'tile'},h('div',{class:'k'},k),h('div',{class:'v'},v));
+  $('#tiles').replaceChildren(tile('Account',d.users.length),tile('Online ora',online),tile('Espulsi',d.users.filter(u=>u.banned).length),tile('Impegni',d.events.length),tile('Modifiche 24h',edits24));
+  $('#updated').textContent='Aggiornato '+fmtShort(Date.now());
+  document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===st.tab)));
+  const main=$('#main');
+  if(st.tab==='users')main.replaceChildren(usersView());
+  else if(st.tab==='log')main.replaceChildren(logView());
+  else main.replaceChildren(eventsView());
+}
+
+function confirmBtn(label,cls,fn){
+  const b=h('button',{class:'btn sm '+cls,type:'button'},label);let t=null;
+  b.onclick=async()=>{
+    if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Conferma?';t=setTimeout(()=>{b.dataset.armed='';b.textContent=label;},4000);return;}
+    clearTimeout(t);b.disabled=true;
+    try{await fn();await load();}catch(e){$('#err').textContent=e.message;b.disabled=false;}
+  };
+  return b;
+}
+
+function usersView(){
+  const us=[...st.data.users].sort((a,b)=>b.lastSeen-a.lastSeen);
+  if(!us.length)return h('div',{class:'empty'},'Ancora nessun account. Appena qualcuno entra compare qui.');
+  return h('div',{class:'list'},us.map(u=>{
+    const on=st.now-u.lastSeen<180000&&!u.banned;
+    return h('article',{class:'card'+(u.banned?' banned':'')},
+      h('div',{class:'top'},h('div',{class:'name'},u.name),h('span',{class:'pill '+(u.banned?'off':on?'on':'')},u.banned?'Espulso':on?'Online':'Offline')),
+      h('dl',{class:'kv'},
+        h('dt',{},'Creato'),h('dd',{},fmt(u.createdAt)),
+        h('dt',{},'Ultimo accesso'),h('dd',{},fmt(u.lastSeen)+(u.lastSeen?' ('+ago(u.lastSeen)+')':'')),
+        h('dt',{},'Accessi'),h('dd',{},u.logins),
+        h('dt',{},'Modifiche'),h('dd',{},u.edits)),
+      h('div',{class:'acts'},
+        !u.banned&&confirmBtn('Disconnetti','ghost',()=>call('POST',{action:'logout',key:u.key})),
+        confirmBtn(u.banned?'Riammetti':'Espelli',u.banned?'':'bad',()=>call('POST',{action:u.banned?'unban':'ban',key:u.key})),
+        confirmBtn('Elimina','ghost',()=>call('POST',{action:'delete',key:u.key}))));
+  }));
+}
+
+function logView(){
+  const l=st.data.log;
+  if(!l.length)return h('div',{class:'empty'},'Nessuna attività registrata.');
+  return h('div',{class:'log'},l.map(x=>h('div',{class:'logrow'},h('div',{class:'t'},fmtShort(x.t)),h('div',{},h('b',{},x.user||'?'),' ',(ACT[x.action]||(()=>x.action))(x)))));
+}
+
+function eventsView(){
+  const ev=[...st.data.events].sort((a,b)=>a.date<b.date?1:-1);
+  if(!ev.length)return h('div',{class:'empty'},'Nessun impegno in agenda.');
+  return h('div',{class:'list'},ev.map(e=>h('article',{class:'card'},
+    h('div',{class:'top'},h('div',{class:'name'},e.subject),h('span',{class:'pill '+(e.type==='interrogazione'?'on':'off')},e.type==='interrogazione'?'Interrogazione':'Verifica')),
+    h('div',{},day(e.date)+(e.topic?' · '+e.topic:'')),
+    h('div',{class:'sub'},'Inserito da '+(e.createdBy||'?')+(e.updatedBy&&e.updatedBy!==e.createdBy?' · modificato da '+e.updatedBy:'')),
+    h('div',{class:'acts'},confirmBtn('Elimina impegno','bad',()=>call('POST',{action:'delevent',id:e.id}))))));
+}
+
+$('#loginForm').addEventListener('submit',e=>{e.preventDefault();st.code=$('#code').value;try{sessionStorage.setItem('agenda2l-admin',st.code);}catch(_){}$('#code').value='';$('#loginErr').textContent='';load();});
+$('#reload').onclick=load;
+$('#exit').onclick=()=>{st.code='';st.data=null;try{sessionStorage.removeItem('agenda2l-admin');}catch(_){}$('#dash').hidden=true;$('#loginView').hidden=false;};
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{st.tab=b.dataset.tab;if(st.data)render();});
+
+if(st.code)load();else $('#loginView').hidden=false;
+setInterval(()=>{if(!document.hidden&&st.data&&!$('#dash').hidden)load();},15000);
+})();
+</script>
+</body>
+</html>
