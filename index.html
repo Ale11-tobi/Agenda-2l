@@ -134,6 +134,22 @@ select.f{border:1.5px solid var(--line);background:var(--surface);border-radius:
 .ev b{font-weight:800;text-transform:uppercase;font-size:.72rem;letter-spacing:.03em;display:block}
 .ev .nm{display:block;font-weight:500;font-size:.76rem}
 .ev .ab{display:none}
+.summary{display:flex;flex-direction:column;gap:10px}
+.soon{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:12px 14px}
+.soon-h{display:flex;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;align-items:baseline;margin-bottom:4px}
+.soon-h .k{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.soon-h .cnt{font-size:.85rem;color:var(--muted);font-weight:600}
+.soon-row{display:grid;grid-template-columns:90px 1fr;gap:10px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+.soon-row .dl{font-family:var(--display);font-weight:800;font-size:1.1rem;line-height:1.15}
+.soon-row .dl small{display:block;font-family:var(--body);color:var(--muted);font-weight:600;font-size:.78rem}
+.soon-row.hot .dl{background:var(--hl);color:#14183a;border-radius:8px;padding:2px 8px;display:inline-block;justify-self:start}
+.soon-ev{display:flex;flex-wrap:wrap;gap:6px}
+.soon-none{color:var(--muted);padding:6px 0}
+.mine{background:var(--hl);color:#14183a;border-radius:14px;padding:10px 14px;font-weight:800;display:flex;flex-direction:column;gap:2px}
+.ev.lg{padding:5px 11px;border-radius:999px;font-size:.88rem;font-weight:600;text-transform:none;letter-spacing:0;white-space:normal;overflow:visible}
+.ev.lg b{display:inline;font-size:.74rem;margin-right:4px;text-transform:uppercase;letter-spacing:.03em}
+.ev.me{outline:2.5px solid var(--accent);outline-offset:1px}
+.cell.wk{background:color-mix(in srgb,var(--hl) 16%,var(--surface))}
 .legend{display:flex;gap:14px;color:var(--muted);font-size:.85rem;margin:12px 0 4px;flex-wrap:wrap;align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:6px;font-weight:600}
 .sw{width:22px;height:12px;border-radius:4px;display:inline-block}
@@ -160,6 +176,9 @@ select.f{border:1.5px solid var(--line);background:var(--surface);border-radius:
   .evs{gap:2px}
   .ev{padding:2px 3px;font-size:.66rem;border-radius:5px;font-weight:800;text-transform:uppercase;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ev .fu{display:none} .ev .ab{display:inline}
+  .ev.lg{font-size:.85rem;text-transform:none;white-space:normal;letter-spacing:0;font-weight:600;padding:4px 10px;border-radius:999px}
+  .soon-row{grid-template-columns:74px 1fr;gap:8px}
+  .soon-row .dl{font-size:1rem}
 }
 
 /* modal */
@@ -361,17 +380,24 @@ function visible(){
 /* render */
 function render(){renderSummary();renderToolbar();renderStatus();state.view==='list'?renderList():renderCal();}
 
+function dayLabel(date){
+  const n=diff(date),d=parse(date);
+  if(n===0)return['Oggi',d.getDate()+' '+MESI[d.getMonth()]];
+  if(n===1)return['Domani',d.getDate()+' '+MESI[d.getMonth()]];
+  return[wd(d).slice(0,3)+' '+d.getDate(),MESI[d.getMonth()]];
+}
 function renderSummary(){
   const up=state.events.filter(e=>diff(e.date)>=0).sort(sortFn);
   const week=up.filter(e=>diff(e.date)<=6);
   const nv=week.filter(e=>e.type==='verifica').length, ni=week.filter(e=>e.type==='interrogazione').length;
-  const nx=up[0];
-  const box=$('#summary');box.replaceChildren(
-    h('div',{class:'tile next'},h('div',{class:'k'},'Prossimo impegno'),
-      nx?[h('div',{class:'v small'},nx.subject+' · '+TYPES[nx.type].toLowerCase()),h('div',{class:'d'},rel(diff(nx.date))+' · '+parse(nx.date).getDate()+' '+MESI[parse(nx.date).getMonth()])]
-        :[h('div',{class:'v small'},'Niente in vista'),h('div',{class:'d'},'Goditi la pausa')]),
-    h('div',{class:'tile v-t'},h('div',{class:'k'},'Verifiche, 7 giorni'),h('div',{class:'v'},nv)),
-    h('div',{class:'tile i-t'},h('div',{class:'k'},'Interrogazioni, 7 giorni'),h('div',{class:'v'},ni)));
+  const days=[...group(up).entries()].slice(0,3);
+  const mine=up.filter(e=>diff(e.date)<=14&&isMine(e)).slice(0,3);
+  $('#summary').replaceChildren(
+    mine.length&&h('div',{class:'mine',role:'status'},mine.map(e=>h('span',{},'★ Tocca a te: '+e.subject+' · '+rel(diff(e.date)).toLowerCase()))),
+    h('div',{class:'soon'},
+      h('div',{class:'soon-h'},h('span',{class:'k'},'Prossimi giorni'),h('span',{class:'cnt'},'In 7 giorni: '+nv+(nv===1?' verifica':' verifiche')+' · '+ni+(ni===1?' interrogazione':' interrogazioni'))),
+      days.length?days.map(([date,list])=>{const[l,sm]=dayLabel(date);return h('div',{class:'soon-row'+(diff(date)<=1?' hot':'')},h('div',{class:'dl'},l,h('small',{},sm)),h('div',{class:'soon-ev'},list.map(longChip)));})
+        :h('div',{class:'soon-none'},'Niente in vista. Goditi la pausa!')));
 }
 
 function renderToolbar(){
@@ -439,9 +465,20 @@ const ABBR={'italiano':'ITA','inglese':'ING','storia e geografia':'STO','matemat
 const abbr=sj=>ABBR[sj.trim().toLowerCase()]||sj.trim().slice(0,3).toUpperCase();
 const DOWS=[['Lunedì','Lun'],['Martedì','Mar'],['Mercoledì','Mer'],['Giovedì','Gio'],['Venerdì','Ven'],['Sabato','Sab'],['Domenica','Dom']];
 
+function isMine(e){
+  if(!state.me||e.type!=='interrogazione'||!e.who)return false;
+  const tok=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/[^a-z0-9]+/).filter(x=>x.length>=3);
+  const w=new Set(tok(e.who));return tok(state.me).some(x=>w.has(x));
+}
+function longChip(e){
+  const me=isMine(e);
+  return e.type==='verifica'?h('span',{class:'ev v lg'},h('b',{},'Verifica'),e.subject)
+    :h('span',{class:'ev i lg'+(me?' me':'')},h('b',{},(me?'★ ':'')+e.subject),e.who);
+}
 function chipEl(e){
+  const me=isMine(e);
   if(e.type==='verifica')return h('div',{class:'ev v'},h('b',{class:'fu'},'Verifica'),h('span',{class:'fu'},e.subject),h('span',{class:'ab'},'VER '+abbr(e.subject)));
-  return h('div',{class:'ev i'},h('b',{class:'fu'},e.subject),e.who&&h('span',{class:'nm fu'},e.who),h('span',{class:'ab'},'INT '+abbr(e.subject)));
+  return h('div',{class:'ev i'+(me?' me':'')},h('b',{class:'fu'},(me?'★ ':'')+e.subject),e.who&&h('span',{class:'nm fu'},e.who),h('span',{class:'ab'},(me?'★':'INT')+' '+abbr(e.subject)));
 }
 
 function renderCal(){
@@ -454,6 +491,7 @@ function renderCal(){
   const end=new Date(last);end.setDate(last.getDate()+((7-((last.getDay()+6)%7)-1)%7));
   const weekend=evs.some(e=>{const d=parse(e.date);return d>=first&&d<=last&&(d.getDay()===0||d.getDay()===6);});
   const cols=weekend?7:5, todayK=iso(today());
+  const tn=today(), tmon=new Date(tn);tmon.setDate(tn.getDate()-((tn.getDay()+6)%7));const tmonK=iso(tmon);
   const cells=[];
   const days=[];
   for(let ws=new Date(start);ws<=end;ws.setDate(ws.getDate()+7)){
@@ -463,7 +501,8 @@ function renderCal(){
   }
   for(const d of days){
     const dd=new Date(d), k=iso(dd), list=by.get(k)||[], nv=list.filter(e=>e.type==='verifica').length;
-    cells.push(h('div',{class:'cell'+(dd.getMonth()!==m.getMonth()?' out':'')+(k<todayK?' past':'')+(k===todayK?' today':'')+(k===state.sel?' sel':''),role:'button',tabindex:'0',
+    const mon=new Date(dd);mon.setDate(dd.getDate()-((dd.getDay()+6)%7));
+    cells.push(h('div',{class:'cell'+(iso(mon)===tmonK?' wk':'')+(dd.getMonth()!==m.getMonth()?' out':'')+(k<todayK?' past':'')+(k===todayK?' today':'')+(k===state.sel?' sel':''),role:'button',tabindex:'0',
       'aria-label':dd.getDate()+' '+MESI[dd.getMonth()]+(list.length?', '+list.length+(list.length===1?' impegno':' impegni'):''),
       onclick:()=>{state.sel=k;render();},
       onkeydown:ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();state.sel=k;render();}}},
@@ -573,7 +612,7 @@ async function del(){
 const mini=(type,subj,topic,when)=>h('div',{class:'card '+type},h('div',{class:'body'},h('div',{class:'row1'},h('span',{class:'pill'},TYPES[type]),when&&h('span',{class:'when soon'},when)),h('div',{class:'subject'},subj),topic&&h('p',{class:'topic'},topic)));
 const STEPS=[
  {t:'Benvenuto!',p:'Questa è l\'agenda della 2L. Verifiche e interrogazioni di tutta la classe in un posto solo.',vis:()=>[h('div',{class:'tut-big'},'Agenda 2L'),h('div',{class:'row1'},h('span',{class:'pill'},'Verifica'),h('span',{class:'pill',style:'background:var(--interr-bg);color:var(--interr)'},'Interrogazione'))]},
- {t:'Leggi il calendario',p:'Ogni giorno mostra i suoi impegni a colori: rosa le verifiche, verde le interrogazioni. Tocca un giorno per vedere tutti i dettagli.',vis:()=>[h('div',{class:'evs',style:'width:100%;max-width:260px'},h('div',{class:'ev v'},h('b',{},'Verifica'),'Informatica'),h('div',{class:'ev i'},h('b',{},'Matematica'),h('span',{class:'nm'},'Rossi, Bianchi'))),h('div',{class:'warn'},'! = 2 o più verifiche nello stesso giorno')]},
+ {t:'Leggi il calendario',p:'Ogni giorno mostra i suoi impegni a colori: rosa le verifiche, verde le interrogazioni. Tocca un giorno per i dettagli, scorri a destra o a sinistra per cambiare mese. Se tocca a te, lo vedi in alto.',vis:()=>[h('div',{class:'evs',style:'width:100%;max-width:260px'},h('div',{class:'ev v'},h('b',{},'Verifica'),'Informatica'),h('div',{class:'ev i'},h('b',{},'Matematica'),h('span',{class:'nm'},'Rossi, Bianchi'))),h('div',{class:'warn'},'! = 2 o più verifiche nello stesso giorno')]},
  {t:'Aggiungi un impegno',p:'Tocca il pulsante in basso a destra. Scegli verifica o interrogazione, la materia e la data. Il resto è facoltativo.',vis:()=>[h('div',{class:'typepick',style:'width:100%;max-width:300px'},h('label',{class:'v',style:'border-color:var(--verifica);background:var(--verifica-bg);color:var(--verifica)'},'Verifica'),h('label',{class:'i'},'Interrogazione')),h('span',{class:'btn fakebtn'},'+ Aggiungi')]},
  {t:'Hai sbagliato qualcosa?',p:'Tocca "Modifica" su un impegno per cambiarlo o eliminarlo. Tutti in classe possono farlo, quindi scrivi il tuo nome.',vis:()=>[mini('verifica','Fisica','Cinematica','Domani'),h('span',{class:'btn ghost fakebtn'},'Modifica')]},
  {t:'Elenco e filtri',p:'Con "Elenco" vedi gli impegni uno dopo l\'altro. I filtri in alto mostrano solo verifiche, solo interrogazioni o una materia.',vis:()=>[h('div',{class:'seg fakebtn'},h('button',{type:'button','aria-pressed':'false'},'Calendario'),h('button',{type:'button','aria-pressed':'true'},'Elenco')),h('div',{class:'chips'},h('span',{class:'chip',style:'border:1.5px solid var(--line);border-radius:999px;padding:7px 14px'},'Tutti'),h('span',{class:'chip',style:'border:1.5px solid var(--line);border-radius:999px;padding:7px 14px'},'Verifiche'),h('span',{class:'chip',style:'border:1.5px solid var(--line);border-radius:999px;padding:7px 14px'},'Interrogazioni')),h('p',{class:'tut-hand'},'La pagina si aggiorna da sola.')]}
@@ -595,6 +634,17 @@ function maybeTut(){
   let seen=false;try{seen=!!localStorage.getItem('agenda2l-guida');}catch(_){}
   if(!seen)openTut();
 }
+
+/* scorri col dito per cambiare mese */
+(function(){
+  let x0=0,y0=0;const m=document.getElementById('main');
+  m.addEventListener('touchstart',e=>{const t=e.changedTouches[0];x0=t.clientX;y0=t.clientY;},{passive:true});
+  m.addEventListener('touchend',e=>{
+    if(state.view!=='cal'||!state.month)return;
+    const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
+    if(Math.abs(dx)>70&&Math.abs(dy)<45){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+(dx<0?1:-1),1);render();}
+  },{passive:true});
+})();
 
 /* wiring */
 $('#addTop').onclick=$('#fab').onclick=()=>openModal(null,state.view==='cal'?state.sel:null);
