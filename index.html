@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
 <title>Agenda 2L</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,22 +22,6 @@
   --body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1124; --surface:#171b36; --ink:#eef0ff; --muted:#9aa0c8; --line:#272c52;
-  --accent:#7d89ff; --accent-ink:#0e1124;
-  --verifica:#ff7078; --verifica-bg:#3a1c28;
-  --interr:#3fd2bf; --interr-bg:#12362f;
-  --hl:#ffe45c; --vc:#7d2244; --vc-ink:#ffd6e5; --ic:#2f5d1c; --ic-ink:#d8f9c0;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3);
-  color-scheme:dark;}}
-:root[data-theme="dark"]{
-  --bg:#0e1124; --surface:#171b36; --ink:#eef0ff; --muted:#9aa0c8; --line:#272c52;
-  --accent:#7d89ff; --accent-ink:#0e1124;
-  --verifica:#ff7078; --verifica-bg:#3a1c28;
-  --interr:#3fd2bf; --interr-bg:#12362f;
-  --hl:#ffe45c; --vc:#7d2244; --vc-ink:#ffd6e5; --ic:#2f5d1c; --ic-ink:#d8f9c0;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3);
-  color-scheme:dark;}
 
 *{box-sizing:border-box}
 [hidden]{display:none !important}
@@ -392,12 +378,12 @@ function renderSummary(){
   const nv=week.filter(e=>e.type==='verifica').length, ni=week.filter(e=>e.type==='interrogazione').length;
   const days=[...group(up).entries()].slice(0,3);
   const mine=up.filter(e=>diff(e.date)<=14&&isMine(e)).slice(0,3);
-  $('#summary').replaceChildren(
-    mine.length&&h('div',{class:'mine',role:'status'},mine.map(e=>h('span',{},'★ Tocca a te: '+e.subject+' · '+rel(diff(e.date)).toLowerCase()))),
+  $('#summary').replaceChildren(...[
+    mine.length>0&&h('div',{class:'mine',role:'status'},mine.map(e=>h('span',{},'★ Tocca a te: '+e.subject+' · '+rel(diff(e.date)).toLowerCase()))),
     h('div',{class:'soon'},
       h('div',{class:'soon-h'},h('span',{class:'k'},'Prossimi giorni'),h('span',{class:'cnt'},'In 7 giorni: '+nv+(nv===1?' verifica':' verifiche')+' · '+ni+(ni===1?' interrogazione':' interrogazioni'))),
       days.length?days.map(([date,list])=>{const[l,sm]=dayLabel(date);return h('div',{class:'soon-row'+(diff(date)<=1?' hot':'')},h('div',{class:'dl'},l,h('small',{},sm)),h('div',{class:'soon-ev'},list.map(longChip)));})
-        :h('div',{class:'soon-none'},'Niente in vista. Goditi la pausa!')));
+        :h('div',{class:'soon-none'},'Niente in vista. Goditi la pausa!'))].filter(Boolean));
 }
 
 function renderToolbar(){
